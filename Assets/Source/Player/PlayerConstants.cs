@@ -30,9 +30,15 @@ public static class PlayerConstants
     public const int collisionSegments = 3;
     public const int collisionLayerMask = 1;
     public const float collisionResolutionOvershoot = 1.001f;
-    public const float minimumHorizontalCollisionResolutionDistance = 0.75f;
-    public const float minimumBottomCollisionResolutionDistance = 0.75f;
-    public const float minimumTopCollisionResolutionDistance = 0.0f;
+    // public const float minimumHorizontalCollisionResolutionDistance = 0.75f;
+    // public const float minimumBottomCollisionResolutionDistance = 0.75f;
+    // public const float minimumTopCollisionResolutionDistance = 0.0f;
+    public const float minimumHorizontalCollisionResolutionDistance = 1.0f - 0.75f;
+    public const float minimumBottomCollisionResolutionDistance = 1.0f - 0.75f;
+    public const float minimumTopCollisionResolutionDistance = 1.0f - 0.0f;
+    public const float maximumHorizontalCollisionResolutionDistance = 0.0f;
+    public const float maximumBottomCollisionResolutionDistance = 0.0f;
+    public const float maximumTopCollisionResolutionDistance = 0.0f;
 
     #endregion
 }

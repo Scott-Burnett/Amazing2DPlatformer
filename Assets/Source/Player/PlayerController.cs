@@ -8,10 +8,10 @@ public class PlayerController : MonoBehaviour
     public Vector2 velocity { get; private set; }
 
     // Collisions
-    bool collidingLeft;
-    bool collidingRight;
-    bool collidingTop;
-    bool collidingBottom;
+    public bool collidingLeft { get; private set; }
+    public bool collidingRight { get; private set; }
+    public bool collidingTop { get; private set; }
+    public bool collidingBottom { get; private set; }
 
     #endregion
 
@@ -52,7 +52,7 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        // ApplyGravity();
+        ApplyGravity();
         Move();
         ResolveCollisions();
         UpdatePositionAndVelocity();
@@ -60,7 +60,36 @@ public class PlayerController : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        
+        Gizmos.color = Color.green;
+        const float sphereRadius = 0.1f;
+
+        if (collidingTop)
+        {
+            Gizmos.DrawLine(TopLeft, TopRight);
+            Gizmos.DrawSphere(TopLeft, sphereRadius);
+            Gizmos.DrawSphere(TopRight, sphereRadius);
+        }
+
+        if (collidingBottom)
+        {
+            Gizmos.DrawLine(BottomLeft, BottomRight);
+            Gizmos.DrawSphere(BottomLeft, sphereRadius);
+            Gizmos.DrawSphere(BottomRight, sphereRadius);
+        }
+
+        if (collidingLeft)
+        {
+            Gizmos.DrawLine(TopLeft, BottomLeft);
+            Gizmos.DrawSphere(TopLeft, sphereRadius);
+            Gizmos.DrawSphere(BottomLeft, sphereRadius);
+        }
+
+        if (collidingRight)
+        {
+            Gizmos.DrawLine(TopRight, BottomRight);
+            Gizmos.DrawSphere(TopRight, sphereRadius);
+            Gizmos.DrawSphere(BottomRight, sphereRadius);
+        }
     }
 
     #endregion
@@ -69,6 +98,12 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyGravity()
     {
+        if (Input.GetKey(PlayerConstants.jumpKeyCode))
+        {
+            nextPosition += PlayerConstants.fallspeed * Time.deltaTime * Vector3.up;
+            return;
+        }
+
         nextPosition += PlayerConstants.fallspeed * Time.deltaTime * Vector3.down;
     }
 
@@ -99,49 +134,13 @@ public class PlayerController : MonoBehaviour
     {
         Vector2 collisionResolution;
 
-        // // Bottom
-        // (collidingBottom, collisionResolution) = 
-        //     CalculateCollisionOnEdge(NextTopLeft, 
-        //                              Vector2.down, 
-        //                              box.size.y, 
-        //                              PlayerConstants.minimumBottomCollisionResolutionDistance, 
-        //                              verticalEdgeSegment);
-        // nextPosition += (Vector3) collisionResolution;
-
-        // // Left
-        // (collidingLeft, collisionResolution) = 
-        //     CalculateCollisionOnEdge(NextTopRight, 
-        //                              Vector2.left, 
-        //                              box.size.x, 
-        //                              PlayerConstants.minimumHorizontalCollisionResolutionDistance, 
-        //                              horizontalEdgeSegment);
-        // nextPosition += (Vector3) collisionResolution;
-
-        // // Right
-        // (collidingRight, collisionResolution) = 
-        //     CalculateCollisionOnEdge(NextTopLeft, 
-        //                              Vector2.right, 
-        //                              box.size.x, 
-        //                              PlayerConstants.minimumHorizontalCollisionResolutionDistance, 
-        //                              horizontalEdgeSegment);
-        // nextPosition += (Vector3) collisionResolution;
-
-        // // Top
-        // (collidingTop, collisionResolution) = 
-        //     CalculateCollisionOnEdge(NextBottomLeft, 
-        //                              Vector2.up, 
-        //                              box.size.y, 
-        //                              PlayerConstants.minimumTopCollisionResolutionDistance, 
-        //                              verticalEdgeSegment);
-        // nextPosition += (Vector3) collisionResolution;
-
-        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
         // Bottom
         (collidingBottom, collisionResolution) = 
             CalculateCollisionOnEdge(BottomLeft, 
                                      NextBottomLeft,
+                                     Vector2.up,
                                      PlayerConstants.minimumBottomCollisionResolutionDistance, 
+                                     PlayerConstants.maximumBottomCollisionResolutionDistance, 
                                      verticalEdgeSegment);
         nextPosition += (Vector3) collisionResolution;
 
@@ -149,7 +148,9 @@ public class PlayerController : MonoBehaviour
         (collidingLeft, collisionResolution) = 
             CalculateCollisionOnEdge(TopLeft,
                                      NextTopLeft,
+                                     Vector2.right,
                                      PlayerConstants.minimumHorizontalCollisionResolutionDistance, 
+                                     PlayerConstants.maximumHorizontalCollisionResolutionDistance, 
                                      horizontalEdgeSegment);
         nextPosition += (Vector3) collisionResolution;
 
@@ -157,49 +158,27 @@ public class PlayerController : MonoBehaviour
         (collidingRight, collisionResolution) = 
             CalculateCollisionOnEdge(TopRight,
                                      NextTopRight,
+                                     Vector2.left,
                                      PlayerConstants.minimumHorizontalCollisionResolutionDistance, 
+                                     PlayerConstants.maximumHorizontalCollisionResolutionDistance, 
                                      horizontalEdgeSegment);
         nextPosition += (Vector3) collisionResolution;
 
         // Top
         (collidingTop, collisionResolution) = 
             CalculateCollisionOnEdge(TopLeft, 
-                                     NextTopLeft, 
+                                     NextTopLeft,
+                                     Vector2.down,
                                      PlayerConstants.minimumTopCollisionResolutionDistance, 
+                                     PlayerConstants.maximumTopCollisionResolutionDistance, 
                                      verticalEdgeSegment);
         nextPosition += (Vector3) collisionResolution;
     }
 
-    // private (bool, Vector2) CalculateCollisionOnEdge(Vector2 edgeStart, 
-    //                                                  Vector2 direction, 
-    //                                                  float rayDistance,
-    //                                                  float minimumResolutionDistance,
-    //                                                  Vector2 edgeSegment)
-    // {
-    //     bool collidingOnEdge = false;
-    //     float minimumDistance = rayDistance;
-
-    //     RaycastHit2D hit;
-    //     for (int i = 0; i < PlayerConstants.collisionSegments; i++, edgeStart += edgeSegment)
-    //     {
-    //         hit = Physics2D.Raycast(edgeStart, direction, rayDistance, PlayerConstants.collisionLayerMask);
-    //         if (hit.collider &&
-    //             hit.distance <= minimumDistance &&
-    //             hit.distance > minimumResolutionDistance)
-    //         {
-    //             minimumDistance = hit.distance;
-    //             collidingOnEdge = true;
-    //         }
-    //     }
-
-    //     Vector2 collisionResolution = (minimumDistance - rayDistance) * PlayerConstants.collisionResolutionOvershoot * direction;
-    //     return (collidingOnEdge, collisionResolution);
-    // }
-
     private (bool, Vector2) CalculateCollisionOnEdge(Vector2 edgeStart, 
-                                                    //  Vector2 direction,
                                                      Vector2 edgeEnd,
-                                                    //  float rayDistance,
+                                                     Vector2 resolutionNormal,
+                                                     float maximumResolutionDistance,
                                                      float minimumResolutionDistance,
                                                      Vector2 edgeSegment)
     {
@@ -213,15 +192,23 @@ public class PlayerController : MonoBehaviour
         {
             hit = Physics2D.Raycast(edgeStart, direction, rayDistance, PlayerConstants.collisionLayerMask);
             if (hit.collider &&
-                hit.distance <= minimumDistance &&
-                hit.distance > minimumResolutionDistance)
+                hit.distance <= minimumDistance /*&&
+                hit.distance > minimumResolutionDistance*/)
             {
                 minimumDistance = hit.distance;
                 collidingOnEdge = true;
             }
         }
 
-        Vector2 collisionResolution = (minimumDistance - rayDistance) * PlayerConstants.collisionResolutionOvershoot * direction;
+        // Vector2 collisionResolution = (minimumDistance - rayDistance) * PlayerConstants.collisionResolutionOvershoot * direction;
+        Vector2 collisionResolution = (rayDistance - minimumDistance) * PlayerConstants.collisionResolutionOvershoot * resolutionNormal;
+
+        // if (collisionResolution.magnitude > maximumResolutionDistance ||
+        //     collisionResolution.magnitude < minimumResolutionDistance)
+        // {
+        //     return (false, Vector2.zero);
+        // }
+
         return (collidingOnEdge, collisionResolution);
     }
 
