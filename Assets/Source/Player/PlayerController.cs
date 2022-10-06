@@ -138,7 +138,7 @@ public class PlayerController : MonoBehaviour
         (collidingBottom, collisionResolution) = 
             CalculateCollisionOnEdge(BottomLeft, 
                                      NextBottomLeft,
-                                     Vector2.up,
+                                    //  Vector2.up,
                                      PlayerConstants.minimumBottomCollisionResolutionDistance, 
                                      PlayerConstants.maximumBottomCollisionResolutionDistance, 
                                      verticalEdgeSegment);
@@ -148,7 +148,7 @@ public class PlayerController : MonoBehaviour
         (collidingLeft, collisionResolution) = 
             CalculateCollisionOnEdge(TopLeft,
                                      NextTopLeft,
-                                     Vector2.right,
+                                    //  Vector2.right,
                                      PlayerConstants.minimumHorizontalCollisionResolutionDistance, 
                                      PlayerConstants.maximumHorizontalCollisionResolutionDistance, 
                                      horizontalEdgeSegment);
@@ -158,7 +158,7 @@ public class PlayerController : MonoBehaviour
         (collidingRight, collisionResolution) = 
             CalculateCollisionOnEdge(TopRight,
                                      NextTopRight,
-                                     Vector2.left,
+                                    //  Vector2.left,
                                      PlayerConstants.minimumHorizontalCollisionResolutionDistance, 
                                      PlayerConstants.maximumHorizontalCollisionResolutionDistance, 
                                      horizontalEdgeSegment);
@@ -168,7 +168,7 @@ public class PlayerController : MonoBehaviour
         (collidingTop, collisionResolution) = 
             CalculateCollisionOnEdge(TopLeft, 
                                      NextTopLeft,
-                                     Vector2.down,
+                                    //  Vector2.down,
                                      PlayerConstants.minimumTopCollisionResolutionDistance, 
                                      PlayerConstants.maximumTopCollisionResolutionDistance, 
                                      verticalEdgeSegment);
@@ -177,13 +177,14 @@ public class PlayerController : MonoBehaviour
 
     private (bool, Vector2) CalculateCollisionOnEdge(Vector2 edgeStart, 
                                                      Vector2 edgeEnd,
-                                                     Vector2 resolutionNormal,
+                                                    //  Vector2 resolutionNormal,
                                                      float maximumResolutionDistance,
                                                      float minimumResolutionDistance,
                                                      Vector2 edgeSegment)
     {
         float rayDistance = Vector2.Distance(edgeStart, edgeEnd);
         Vector2 direction = (edgeEnd - edgeStart).normalized;
+        Vector2 resolutionNormal = Vector2.zero;
         bool collidingOnEdge = false;
         float minimumDistance = rayDistance;
 
@@ -196,6 +197,7 @@ public class PlayerController : MonoBehaviour
                 hit.distance > minimumResolutionDistance*/)
             {
                 minimumDistance = hit.distance;
+                resolutionNormal = hit.normal;
                 collidingOnEdge = true;
             }
         }
