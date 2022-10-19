@@ -13,6 +13,20 @@ public static class PlayerConstants
 
     #endregion
 
+    #region Dashing
+
+    public const float dashDuration = 0.1f;
+    public const float dashSpeed = 40.0f;
+
+    #endregion
+
+    #region Jumping
+
+    public const float jumpDuration = 0.25f;
+    public const float jumpSpeedCurve = 0.95f; 
+
+    #endregion
+
     #region Movement
 
     public const float moveSpeed = 10.0f;
@@ -21,7 +35,7 @@ public static class PlayerConstants
 
     #region Jumping
 
-    public const float fallspeed = 20.0f;
+    public const float fallspeed = 30.0f;
 
     #endregion
 

@@ -4,21 +4,23 @@ public class PlayerController : MonoBehaviour
 {
     #region Public Variables
 
+    // Direction Facing
+    public DirectionFacing directionFacing { get; private set; }
+
     // Movement
     public Vector2 velocity { get; private set; }
-
-    // Collisions
-    public bool collidingLeft { get; private set; }
-    public bool collidingRight { get; private set; }
-    public bool collidingTop { get; private set; }
-    public bool collidingBottom { get; private set; }
 
     #endregion
 
     #region Private Variables
 
-    // Movement
-    private Vector3 nextPosition;
+    // Dashing
+    private bool dashing;
+    private float timeStartedDash;
+
+    // Jump
+    private bool jumping;
+    private float timeStartedJump;
 
     // Collisions
     private BoxCollider2D box;
@@ -27,32 +29,84 @@ public class PlayerController : MonoBehaviour
     private Vector2 horizontalEdgeSegment;
     private Vector2 verticalEdgeSegment;
 
+    private Vector2 topLeft;
+    private Vector2 topRight;
+    private Vector2 bottomRight;
+    private Vector2 bottomLeft;
+
+    private Edge bottomEdge;
+    private Edge leftEdge;
+    private Edge rightEdge;
+    private Edge topEdge;
+
     #endregion
 
     #region MonoBehaviour Methods
 
     private void Awake()
     {
+        // Dashing
+        timeStartedDash = 0.0f;
+
+        // Jumping
+        timeStartedJump = 0.0f;
+
         // Movement
         velocity = Vector2.zero;
-        nextPosition = transform.position;
 
         // Collisions
-        collidingLeft = false;
-        collidingRight = false;
-        collidingTop = false;
-        collidingBottom = false;
-
         box = GetComponent<BoxCollider2D>();
         boxHorizontalExtent = box.size.x / 2.0f;
         boxVerticalExtent = box.size.y / 2.0f;
         horizontalEdgeSegment = new Vector2(0.0f, -box.size.y / (PlayerConstants.collisionSegments - 1));
         verticalEdgeSegment = new Vector2(box.size.x / (PlayerConstants.collisionSegments - 1), 0.0f);
+
+        topLeft = TopLeft;
+        topRight = TopRight;
+        bottomRight = BottomRight;
+        bottomLeft = BottomLeft;
+
+        bottomEdge = new Edge
+        {
+            start = bottomLeft,
+            end = bottomRight,
+            normal = Vector2.down,
+            colliding = false
+        };
+
+        leftEdge = new Edge
+        {
+            start = topLeft,
+            end = bottomLeft,
+            normal = Vector2.left,
+            colliding = false
+        };
+
+        rightEdge = new Edge
+        {
+            start = topRight,
+            end = bottomRight,
+            normal = Vector2.right,
+            colliding = false
+        };
+
+        topEdge = new Edge
+        {
+            start = topRight,
+            end = topLeft,
+            normal = Vector2.up,
+            colliding = false
+        };
     }
 
     private void Update()
     {
+        velocity = Vector2.zero;
+
+        DetermineDirectionFacing();
         ApplyGravity();
+        Dash();
+        Jump();
         Move();
         ResolveCollisions();
         UpdatePositionAndVelocity();
@@ -63,28 +117,28 @@ public class PlayerController : MonoBehaviour
         Gizmos.color = Color.green;
         const float sphereRadius = 0.1f;
 
-        if (collidingTop)
+        if (topEdge.colliding)
         {
             Gizmos.DrawLine(TopLeft, TopRight);
             Gizmos.DrawSphere(TopLeft, sphereRadius);
             Gizmos.DrawSphere(TopRight, sphereRadius);
         }
 
-        if (collidingBottom)
+        if (bottomEdge.colliding)
         {
             Gizmos.DrawLine(BottomLeft, BottomRight);
             Gizmos.DrawSphere(BottomLeft, sphereRadius);
             Gizmos.DrawSphere(BottomRight, sphereRadius);
         }
 
-        if (collidingLeft)
+        if (leftEdge.colliding)
         {
             Gizmos.DrawLine(TopLeft, BottomLeft);
             Gizmos.DrawSphere(TopLeft, sphereRadius);
             Gizmos.DrawSphere(BottomLeft, sphereRadius);
         }
 
-        if (collidingRight)
+        if (rightEdge.colliding)
         {
             Gizmos.DrawLine(TopRight, BottomRight);
             Gizmos.DrawSphere(TopRight, sphereRadius);
@@ -96,128 +150,156 @@ public class PlayerController : MonoBehaviour
 
     #region Private Methods
 
+    private void DetermineDirectionFacing()
+    {
+        Vector2 mousePosition = (Vector2) Input.mousePosition;
+        mousePosition = Camera.main.ScreenToWorldPoint(mousePosition);
+
+        float angleToMouse = Vector2.Angle(mousePosition - (Vector2) transform.position, transform.right);
+
+        directionFacing = (DirectionFacing) (int) (angleToMouse % 45);
+
+        Debug.Log(directionFacing);
+    }
+
+    private void Dash()
+    {
+        if (Input.GetKeyDown(PlayerConstants.dashKeyCode))
+        {
+            dashing = true;
+            timeStartedDash = Time.time;
+        }
+
+        if (Time.time - timeStartedDash > PlayerConstants.dashDuration)
+        {
+            dashing = false;
+        }
+
+        if (dashing)
+        {
+            if (Input.GetKey(PlayerConstants.leftKeyCode))
+            {
+                velocity += PlayerConstants.dashSpeed * Time.deltaTime * Vector2.left;
+            }
+
+            if (Input.GetKey(PlayerConstants.rightKeyCode))
+            {
+                velocity += PlayerConstants.dashSpeed * Time.deltaTime * Vector2.right;
+            }
+        }
+    }
+
+    private void Jump()
+    {
+        if (bottomEdge.colliding &&
+            Input.GetKeyDown(PlayerConstants.jumpKeyCode))
+        {
+            jumping = true;
+            timeStartedJump = Time.time;
+        }
+
+        if (Time.time - timeStartedJump > PlayerConstants.jumpDuration ||
+            !Input.GetKey(PlayerConstants.jumpKeyCode))
+        {
+            jumping = false;
+        }
+
+        if (jumping)
+        {
+            const float jumpDurationCoefficient = 1.0f / PlayerConstants.jumpDuration;
+            float jumpDurationFactor = 1.0f - ((Time.time - timeStartedJump) * jumpDurationCoefficient);
+            jumpDurationFactor = Mathf.Pow(jumpDurationFactor, PlayerConstants.jumpSpeedCurve);
+            velocity += PlayerConstants.fallspeed * jumpDurationFactor * Time.deltaTime * Vector2.up;
+        }
+    }
+
     private void ApplyGravity()
     {
-        if (Input.GetKey(PlayerConstants.jumpKeyCode))
+        if (jumping ||
+            dashing)
         {
-            nextPosition += PlayerConstants.fallspeed * Time.deltaTime * Vector3.up;
             return;
         }
 
-        nextPosition += PlayerConstants.fallspeed * Time.deltaTime * Vector3.down;
+        velocity += PlayerConstants.fallspeed * Time.deltaTime * Vector2.down;
     }
 
     private void Move()
     {
         if (Input.GetKey(PlayerConstants.leftKeyCode))
         {
-            nextPosition += PlayerConstants.moveSpeed * Time.deltaTime * Vector3.left;
+            velocity += PlayerConstants.moveSpeed * Time.deltaTime * Vector2.left;
         }
 
         if (Input.GetKey(PlayerConstants.rightKeyCode))
         {
-            nextPosition += PlayerConstants.moveSpeed * Time.deltaTime * Vector3.right;
-        }
-
-        if (Input.GetKey(PlayerConstants.upKeyCode))
-        {
-            nextPosition += PlayerConstants.moveSpeed * Time.deltaTime * Vector3.up;
-        }
-
-        if (Input.GetKey(PlayerConstants.downKeyCode))
-        {
-            nextPosition += PlayerConstants.moveSpeed * Time.deltaTime * Vector3.down;
+            velocity += PlayerConstants.moveSpeed * Time.deltaTime * Vector2.right;
         }
     }
 
     private void ResolveCollisions()
     {
-        Vector2 collisionResolution;
-
         // Bottom
-        (collidingBottom, collisionResolution) = 
-            CalculateCollisionOnEdge(BottomLeft, 
-                                     NextBottomLeft,
-                                    //  Vector2.up,
-                                     PlayerConstants.minimumBottomCollisionResolutionDistance, 
-                                     PlayerConstants.maximumBottomCollisionResolutionDistance, 
-                                     verticalEdgeSegment);
-        nextPosition += (Vector3) collisionResolution;
+        velocity += SweepForCollision(ref bottomEdge);
 
         // Left
-        (collidingLeft, collisionResolution) = 
-            CalculateCollisionOnEdge(TopLeft,
-                                     NextTopLeft,
-                                    //  Vector2.right,
-                                     PlayerConstants.minimumHorizontalCollisionResolutionDistance, 
-                                     PlayerConstants.maximumHorizontalCollisionResolutionDistance, 
-                                     horizontalEdgeSegment);
-        nextPosition += (Vector3) collisionResolution;
+        velocity += SweepForCollision(ref leftEdge);
 
         // Right
-        (collidingRight, collisionResolution) = 
-            CalculateCollisionOnEdge(TopRight,
-                                     NextTopRight,
-                                    //  Vector2.left,
-                                     PlayerConstants.minimumHorizontalCollisionResolutionDistance, 
-                                     PlayerConstants.maximumHorizontalCollisionResolutionDistance, 
-                                     horizontalEdgeSegment);
-        nextPosition += (Vector3) collisionResolution;
+        velocity += SweepForCollision(ref rightEdge);
 
         // Top
-        (collidingTop, collisionResolution) = 
-            CalculateCollisionOnEdge(TopLeft, 
-                                     NextTopLeft,
-                                    //  Vector2.down,
-                                     PlayerConstants.minimumTopCollisionResolutionDistance, 
-                                     PlayerConstants.maximumTopCollisionResolutionDistance, 
-                                     verticalEdgeSegment);
-        nextPosition += (Vector3) collisionResolution;
+        velocity += SweepForCollision(ref topEdge);
     }
 
-    private (bool, Vector2) CalculateCollisionOnEdge(Vector2 edgeStart, 
-                                                     Vector2 edgeEnd,
-                                                    //  Vector2 resolutionNormal,
-                                                     float maximumResolutionDistance,
-                                                     float minimumResolutionDistance,
-                                                     Vector2 edgeSegment)
+    private Vector2 SweepForCollision(ref Edge edge)
     {
-        float rayDistance = Vector2.Distance(edgeStart, edgeEnd);
-        Vector2 direction = (edgeEnd - edgeStart).normalized;
-        Vector2 resolutionNormal = Vector2.zero;
-        bool collidingOnEdge = false;
-        float minimumDistance = rayDistance;
+        edge.colliding = false;
 
+        float distance = velocity.magnitude;
+        Vector2 direction = velocity.normalized;
+
+        Vector2 edgeSegment = (edge.end - edge.start) / (PlayerConstants.collisionSegments - 1);
+
+        Vector2 origin = edge.start;
         RaycastHit2D hit;
-        for (int i = 0; i < PlayerConstants.collisionSegments; i++, edgeStart += edgeSegment)
+        float minimumHitDistance = distance;
+        for (int i = 0; i < PlayerConstants.collisionSegments; i++, origin += edgeSegment)
         {
-            hit = Physics2D.Raycast(edgeStart, direction, rayDistance, PlayerConstants.collisionLayerMask);
+            hit = Physics2D.Raycast(origin, direction, distance, PlayerConstants.collisionLayerMask);
+
             if (hit.collider &&
-                hit.distance <= minimumDistance /*&&
-                hit.distance > minimumResolutionDistance*/)
+                hit.distance <= minimumHitDistance &&
+                Vector2.Dot(edge.normal, hit.normal) < 0.0f)
             {
-                minimumDistance = hit.distance;
-                resolutionNormal = hit.normal;
-                collidingOnEdge = true;
+                minimumHitDistance = hit.distance;
+                edge.colliding = true;
             }
         }
 
-        // Vector2 collisionResolution = (minimumDistance - rayDistance) * PlayerConstants.collisionResolutionOvershoot * direction;
-        Vector2 collisionResolution = (rayDistance - minimumDistance) * PlayerConstants.collisionResolutionOvershoot * resolutionNormal;
-
-        // if (collisionResolution.magnitude > maximumResolutionDistance ||
-        //     collisionResolution.magnitude < minimumResolutionDistance)
-        // {
-        //     return (false, Vector2.zero);
-        // }
-
-        return (collidingOnEdge, collisionResolution);
+        return (minimumHitDistance - distance) * PlayerConstants.collisionResolutionOvershoot * edge.normal;
     }
 
     private void UpdatePositionAndVelocity()
     {
-        velocity = nextPosition - transform.position;
-        transform.position = nextPosition;
+        transform.position += (Vector3) velocity;
+
+        topLeft = TopLeft;
+        topRight = TopRight;
+        bottomRight = BottomRight;
+        bottomLeft = BottomLeft;
+
+        bottomEdge.start = bottomLeft;
+        bottomEdge.end = bottomRight;
+
+        leftEdge.start = topLeft;
+        leftEdge.end = bottomLeft;
+
+        rightEdge.start = topRight;
+        rightEdge.end = bottomRight;
+
+        topEdge.start = topRight;
+        topEdge.end = topLeft;
     }
 
     private Vector2 TopRight => 
@@ -231,18 +313,6 @@ public class PlayerController : MonoBehaviour
 
     private Vector2 BottomLeft =>
         (Vector2) transform.position + new Vector2(-boxHorizontalExtent, -boxVerticalExtent);
-
-    private Vector2 NextTopRight => 
-        (Vector2) nextPosition + new Vector2(boxHorizontalExtent, boxVerticalExtent);
-
-    private Vector2 NextTopLeft =>
-        (Vector2) nextPosition + new Vector2(-boxHorizontalExtent, boxVerticalExtent);
-
-    private Vector2 NextBottomRight =>
-        (Vector2) nextPosition + new Vector2(boxHorizontalExtent, -boxVerticalExtent);
-
-    private Vector2 NextBottomLeft =>
-        (Vector2) nextPosition + new Vector2(-boxHorizontalExtent, -boxVerticalExtent);
 
     #endregion
 }
